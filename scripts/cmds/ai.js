@@ -271,7 +271,7 @@ async function getFallbackResponse(prompt) {
     );
     return response.data.answer || "Je n'ai pas pu trouver de réponse.";
   } catch (error) {
-    return "Désolé, je n'arrive pas à traiter ta demande pour le moment 💔";
+    return "𝑾𝒆𝒑 𝒔𝒖𝒊𝒔 𝒍𝒂 𝒗𝒆𝒊𝒍𝒍𝒆𝒛 𝒑𝒐𝒔𝒆́ 𝒗𝒐𝒕𝒓𝒆 𝒒𝒖𝒆𝒔𝒕𝒊𝒐𝒏 𝗗𝗘𝗫𝗧𝗘𝗨𝗥2.0 𝒂 𝒕𝒐𝒏 𝒔𝒆𝒓𝒗𝒊𝒄𝒆 😉✰➳";
   }
 }
 
@@ -288,7 +288,7 @@ async function handleAIRequest({ api, message, event, prompt, fileUrls = [] }) {
     api.setMessageReaction("🤠", event.messageID, () => {}, true);
     
     // Envoyer la réponse
-    const replyMessage = await message.reply(`◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n${response}`);
+    const replyMessage = await message.reply(`━━━━━━━━━━━━━━   🔮𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥🔮\n━━━━━━━━━━━━━━━\n${response}`);
     
     // Enregistrer pour le système de réponse
     if (replyMessage && replyMessage.messageID) {
@@ -303,7 +303,7 @@ async function handleAIRequest({ api, message, event, prompt, fileUrls = [] }) {
     try {
       const fallbackResponse = await getFallbackResponse(prompt);
       api.setMessageReaction("⚠", event.messageID, () => {}, true);
-      const replyMessage = await message.reply(`◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n${fallbackResponse}`);
+      const replyMessage = await message.reply(`━━━━━━━━━━━━━━   🔮𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥🔮\n━━━━━━━━━━━━━━━\n${fallbackResponse}`);
       
       // Enregistrer pour le système de réponse
       if (replyMessage && replyMessage.messageID) {
@@ -315,7 +315,7 @@ async function handleAIRequest({ api, message, event, prompt, fileUrls = [] }) {
       }
     } catch (fallbackError) {
       api.setMessageReaction("❌", event.messageID, () => {}, true);
-      message.reply("◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n❌ Désolé, une erreur critique est survenue");
+      message.reply("━━━━━━━━━━━━━━  🔮𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥🔮\n━━━━━━━━━━━━━━━\n❌ 𝑫𝒆́𝒔𝒐𝒍𝒆́ 𝒖𝒏𝒆 𝒆𝒓𝒓𝒆𝒖𝒓 𝒄𝒓𝒊𝒕𝒊𝒒𝒖𝒆 𝒆𝒔𝒕 𝒔𝒖𝒓𝒗𝒆𝒏𝒖𝒆 𝒎𝒆𝒔 𝒆𝒙𝒄𝒖𝒔𝒆𝒔 ");
     }
   }
 }
@@ -350,8 +350,8 @@ module.exports = {
     if (cleanCommands.some(cmd => fullCommand.toLowerCase().includes(cmd))) {
       const success = cleanAllHistories();
       return message.reply(
-        success ? "◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n✅ Mémoire effacée avec succès !" : 
-                 "◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n❌ Échec de la suppression de la mémoire"
+        success ? "━━━━━━━━━━━━━━     🔮𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥🔮\n━━━━━━━━━━━━━━\n✅ Mémoire effacée avec succès !" : 
+                 "━━━━━━━━━━━━━━              🔮𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥🔮\n━━━━━━━━━━━━━━\n❌ Échec de la suppression de la mémoire"
       );
     }
 
@@ -374,7 +374,7 @@ module.exports = {
       const preposition = paysMasculins.includes(country) ? 'au' : 'en';
 
       return message.reply(
-        `◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n📅 Nous sommes le ${dateStr}\n🕒 Il est ${timeStr} ${preposition} ${countryName}`
+        `━━━━━━━━━━━━━━                        🔮𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥🔮\n━━━━━━━━━━━━━━━\n📅 𝑁𝑜𝑢𝑠 𝑠𝑜𝑚𝑚𝑒 𝑙𝑒 ${dateStr}\n🕒 Il est ${timeStr} ${preposition} ${countryName}`
       );
     }
 
