@@ -1,270 +1,457 @@
-const { post, get } = require("axios");
-module.exports = {
-  config: { 
-name: "ai", 
-category: "ai" 
-},
-  onStart() {},  
-  onChat: async ({
-     message: { reply: r },
-     args: a, 
-     event: { senderID: s, threadID: t, body: b, messageReply: msg }, 
-    commandName, 
-    usersData, 
-    globalData,
-    role 
-}) => {
-const cmd = `${module.exports.config.name}`;
-const pref = `${utils.getPrefix(t)}`;
-const pr = [`${pref}${cmd}`, `${cmd}`];
-const _m = "gpt";
- const { name, settings = {}, gender } = await usersData.get(s) || {};
-const ownKeys = Object.keys(settings.own || {});
-const ownSettings = settings.own || {}; 
-let Gpt = await globalData.get(_m);  
-     const gen = gender === 2 ? 'male' : 'female';
-      const sys = settings.system || "helpful";
-const csy = settings.own ? Object.keys(settings.own).map(key => ({ [key]: settings.own[key] })) : [];
-let customSystem = [
-    {
-default: "tu es un assistant utile"
-    },   
-];
-if (Array.isArray(csy) && csy.length > 0) {
-    customSystem = customSystem.concat(csy);
-}
-    if (a[0] && pr.some(x => a[0].toLowerCase() === x)) {
-    const p = a.slice(1);
- let assistant = [
-"lover", 
-"helpful", 
-"friendly", 
-"toxic", 
-"godmode", 
-"horny"
-/*"makima", 
-"godmode", 
-"default"*/
-];
-const userAssistant = Object.keys(ownSettings).filter(key => ownSettings[key]);
-const ass = assistant.filter(key => !userAssistant.includes(key));
-assistant.push(...userAssistant);
-const models = {
-     1: "llama", 
-     2: "gemini" 
-          };
-    let ads = "";
-if(role === 2) {
-ads = `For admin only:\nTo change model use:\n${cmd} model <num>\nTo allow NSFW use:\n${cmd} nsfw on/off`;
-}
+const axios = require('axios');
+const moment = require('moment-timezone');
+const { google } = require("googleapis");
+const dotenv = require("dotenv");
+const fetch = require("node-fetch");
+const stream = require("stream");
+const { Buffer } = require('buffer');
+const fs = require('fs');
+const path = require('path');
 
-let url = undefined;
-if (msg && ["photo", "audio", "sticker"].includes(msg.attachments[0]?.type)) {
-  url = { link: msg.attachments[0].url, type: msg.attachments[0].type === "photo" || mgs.attachments[0].type === "sticker" ? "image" : "mp3" };
-}
-let output = ass.map((key, i) => `${i + 1}. ${key.charAt(0).toUpperCase() + key.slice(1)}`).join("\n");
-if (userAssistant.length > 0) {
-  output += `\n\nYour own assistant:\n` +
-    userAssistant.map((key, i) => `${i + 1}. ${key.charAt(0).toUpperCase() + key.slice(1)}`).join("\n");
-}
+dotenv.config({ override: true });
 
-     if (!p.length) return r(`Hello ${name}, choose ur assistant:\n`+ output + `\nexample: ${cmd} set friendly\n\n${cmd} system <add/delete/update> <system name> <your instructions>\n\nexample:\n${cmd} system add cat You are a cat assistant\n${cmd} delete cat\n\n${ads}`)
- const mods = await globalData.get(_m) || { data: {} };
-    const [__, _, sy, key, ...rest] = a;
-    const value = rest.join(" ");
-if(p[0].toLowerCase() === "system") {
-if(p.length < 2) {
-return r(`Usage:\n${cmd} system <add/delete/update> <system name> <your instructions>\n\nexample:\n${cmd} system add cat You are a cat assistant\n${cmd} system delete cat`);
-} 
-    if (sy === "add" || sy === "update") {
-      if (!key || !value) return r(`Please add system name and system prompt.\nExample: system ${sy} cat "You are a cat assistant"`);
-      if (sy === "add" && (assistant.includes(key) || ownKeys.length >= 7 && !ownKeys.includes(key))) return r("You cannot add more systems.");
-      settings.own = { ...settings.own, [key]: value };
-await usersData.set(s, {
-  settings: {
-    ...settings,
-    own: settings.own
-  }
-});
-      return r(`System "${key}" ${sy === "add" ? "added" : "updated"} successfully.`);
-    }
-    if (sy === "delete" && ownKeys.includes(key)) {
-      delete settings.own[key];
-await usersData.set(s, {
-  settings: {
-    ...settings,
-    own: settings.own
-  }
-});
-      return r(`System "${key}" deleted successfully.`);
-    }
-}
+// Configuration de l'API Gemini
+const API_KEY = "AIzaSyCnuhpDQAz7HCPw1O3Ri8O7RDevB0fUFpg";
+const model = "gemini-1.5-flash-latest";
+const GENAI_DISCOVERY_URL = `https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta&key=${API_KEY}`;
 
-   if (p[0].toLowerCase() === "set" && p[1]?.toLowerCase()) {
-        const choice = p[1].toLowerCase();
-       if (assistant.includes(choice)) {
-        await usersData.set(s, { settings: { ...settings, system: choice } });
+// Configuration initiale
+const UPoLPrefix = ['edu', 'ai', 'bot', 'ask'];
+const MAX_HISTORY = 25; // Mémoire de 25 messages par utilisateur
 
-          return r(`Assistant changed to ${choice}`);
-        }
-        return r(`Invalid choice.\n${output}\nExample: ${cmd} set friendly`);
-      }
-if (p[0] === 'nsfw') {
-if (role < 2) {
-  return r("You don't have permission to use this.");
-}
-      if (p[1].toLowerCase() === 'on') {
-        mods.data.nsfw = true; 
-        await globalData.set(_m, mods);
-     return r(`Successfully turned on NSFW. NSFW features are now allowed to use.`);
-      } else if (p[1].toLowerCase() === 'off') {
-        mods.data.nsfw = false; 
-        await globalData.set(_m, mods);
-        return r(`Successfully turned off NSFW. NSFW features are now disabled.`);
-      } else {
-        return r(`Invalid usage: to toggle NSFW, use 'nsfw on' or 'nsfw off'.`);
-      }
-    }
-if (p[0].toLowerCase() === "model") {
-if (role < 2) {
-  return r("You don't have permission to use this.");
-}
-  const _model = models[p[1]];  
-  if (_model) {
-    try {
-      mods.data.model = _model;
-      await globalData.set(_m, mods);
- return r(`Successfully changed model to ${_model}`);
-    } catch (error) {
-return r(`Error setting model: ${error}`);
-    }
-  } else {
-return r(`Please choose only number\navailabale model\n${Object.entries(models).map(([id, name]) => `${id}: ${name}`).join("\n")}\n\nexample: ${pref}${cmd} model 1`);
-  }
-}
-
-if (!Gpt || Gpt === "undefined") {
-  await globalData.create(_m, { data: { model: "llama", nsfw: false } }); 
-  Gpt = await globalData.get(_m);
-}
-const { data: { nsfw, model } } = Gpt;
-  const { result, media } = await ai(p.join(" "), s, name, sys, gen, model, nsfw, customSystem, url);
-
-let attachments;
-if (media && media.startsWith("https://cdn")) {
-    attachments = await global.utils.getStreamFromURL(media, "spotify.mp3");
-} else if (media) {
-    attachments = await global.utils.getStreamFromURL(media);
-}
-
-const rs = {
-    body: result.replace(/😂/g, "🤭"),
-    mentions: [{ id: s, tag: name }]
+// Mapping des fuseaux horaires
+const timezoneMap = {
+  france: 'Europe/Paris',
+  cameroun: 'Africa/Douala',
+  algérie: 'Africa/Algiers',
+  maroc: 'Africa/Casablanca',
+  tunisie: 'Africa/Tunis',
+  sénégal: 'Africa/Dakar',
+  côte_d_ivoire: 'Africa/Abidjan',
+  burkina_faso: 'Africa/Ouagadougou',
+  mali: 'Africa/Bamako',
+  niger: 'Africa/Niamey',
+  tchad: 'Africa/Ndjamena',
+  bénin: 'Africa/Porto-Novo',
+  togo: 'Africa/Lome',
+  ghana: 'Africa/Accra',
+  nigéria: 'Africa/Lagos',
+  afrique_du_sud: 'Africa/Johannesburg',
+  égypte: 'Africa/Cairo',
+  kenya: 'Africa/Nairobi',
+  éthiopie: 'Africa/Addis_Ababa',
+  rwanda: 'Africa/Kigali',
+  tanzanie: 'Africa/Dar_es_Salaam',
+  ouganda: 'Africa/Kampala',
+  angola: 'Africa/Luanda',
+  rdcongo: 'Africa/Kinshasa',
+  congo: 'Africa/Brazzaville',
+  gabon: 'Africa/Libreville',
+  zambie: 'Africa/Lusaka',
+  zimbabwe: 'Africa/Harare',
+  botswana: 'Africa/Gaborone',
+  namibie: 'Africa/Windhoek',
+  madagascar: 'Indian/Antananarivo',
+  maurice: 'Indian/Mauritius',
 };
 
-if (attachments) {
-   rs.attachment = attachments;
+const paysMasculins = [
+  'togo', 'cameroun', 'maroc', 'mali', 'niger', 'tchad', 'bénin', 'ghana',
+  'nigéria', 'congo', 'rdcongo', 'burkina_faso', 'zimbabwe', 'botswana',
+  'namibie', 'angola', 'zambie'
+];
+
+// Fonctions utilitaires
+async function imageUrlToBase64(url) {
+  try {
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+    return Buffer.from(buffer).toString('base64');
+  } catch (error) {
+    console.error("Erreur de conversion d'image:", error);
+    return null;
+  }
 }
 
-  const { messageID: m } = await r(rs);
-  global.GoatBot.onReply.set(m, { commandName, s, model, nsfw, customSystem });
-    }
-  },
- onReply: async ({ 
-    Reply: { s, commandName, model, nsfw, customSystem }, 
-    message: { reply: r }, 
-    args: a, 
-    event: { senderID: x, body: b, attachments, threadID: t }, 
-    usersData 
-}) => {
-const cmd = `${module.exports.config.name}`;
-const pref = `${utils.getPrefix(t)}`;
-    const { name, settings, gender } = await usersData.get(x);
-    const sys = settings.system || "helpful";
-    if (s !== x || b?.toLowerCase().startsWith(cmd) || b?.toLowerCase().startsWith(pref + cmd) || b?.toLowerCase().startsWith(pref + "unsend")) return;
-
- let url = null;
-let prompt = a.join(" ");
-if (!b.includes(".")) {
-    const img = attachments?.[0];
-    if (img) {
-        if (img.type === "sticker" && img.ID === "369239263222822") {
-            prompt = "👍";
-            //url = null;
-        } else {
-            url = (img.type === "sticker") 
-                ? { link: img.url, type: "image" } 
-                : (img.type === "photo") 
-                ? { link: img.url, type: "image" } 
-                : (img.type === "audio") 
-                ? { link: img.url, type: "mp3" } 
-                : null;
-            if (url) prompt = ".";
-        }
-    }
-}
-   
+async function uploadImageAndGetFileData(genaiService, auth, imageUrl) {
+  if (!imageUrl || !imageUrl.startsWith("http")) return null;
+  
+  try {
+    const imageBase64 = await imageUrlToBase64(imageUrl);
+    if (!imageBase64) return null;
     
-const { result, media } = await ai(prompt || ".", s, name, sys, gender === 2 ? 'male' : 'female', model, nsfw, customSystem, url);
-const rs = {
-    body: result.replace(/😂/g, "🤭"),
-    mentions: [{ id: x, tag: name }]
-};
-if (media) {
-    if (media.startsWith('https://cdn')) {
-        rs.attachment = await global.utils.getStreamFromURL(media, "spotify.mp3");
-    } else {
-        rs.attachment = await global.utils.getStreamFromURL(media);
-    }
-}
- const { messageID } = await r(rs);       global.GoatBot.onReply.set(messageID, { commandName, s, sys, model, nsfw,  customSystem, url });
-}
-};
-//llama3-70b-8192
-async function ai(prompt, id, name, system, gender, model, nsfw, customSystem, link = "") {
-  const g4o = async (p, m = "gemma2-9b-it") => post(atob(String.fromCharCode(...atob((await get(atob("aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL2p1bnpkZXZvZmZpY2lhbC90ZXN0L3JlZnMvaGVhZHMvbWFpbi90ZXN0LnR4dA=="))).data).split(" ").map(Number))),
-    { 
-      id, 
-      prompt: p, 
-      name, 
-      model, 
-      system, 
-   customSystem, //array [{ }]
-      gender, 
-      nsfw,
-      url: link ? link : undefined, /*@{object}  { link, type: "image or mp3" } */
-config: [{ 
- gemini: {
- apikey: "AIzaSyAqigdIL9j61bP-KfZ1iz6tI9Q5Gx2Ex_o", 
-model:  "gemini-1.5-flash"
-},
-llama: { model: m }
-}]
-    },
-    {
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': 'Bearer test' 
-      } 
+    const bufferStream = new stream.PassThrough();
+    bufferStream.end(Buffer.from(imageBase64, "base64"));
+    
+    const media = { mimeType: "image/png", body: bufferStream };
+    const body = { file: { displayName: "Uploaded Image" } };
+    
+    const createFileResponse = await genaiService.media.upload({
+      media,
+      auth,
+      requestBody: body,
     });
+    
+    return createFileResponse.data.file;
+  } catch (error) {
+    console.error("Erreur d'upload d'image:", error);
+    return null;
+  }
+}
+
+function getHistoryFilePath(uid) {
+  const dirPath = path.join(__dirname, 'uids');
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+  return path.join(dirPath, `${uid}_gemini_history.json`);
+}
+
+function loadChatHistory(uid) {
+  const historyFile = getHistoryFilePath(uid);
+  
+  try {
+    if (fs.existsSync(historyFile)) {
+      const data = fs.readFileSync(historyFile, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error("Erreur de chargement de l'historique:", error);
+  }
+  
+  return [];
+}
+
+function saveChatHistory(uid, history) {
+  const historyFile = getHistoryFilePath(uid);
+  
+  try {
+    // Limite l'historique à MAX_HISTORY messages
+    const truncatedHistory = history.slice(-MAX_HISTORY);
+    fs.writeFileSync(historyFile, JSON.stringify(truncatedHistory, null, 2));
+    return true;
+  } catch (error) {
+    console.error("Erreur de sauvegarde de l'historique:", error);
+    return false;
+  }
+}
+
+function cleanAllHistories() {
+  const historyDir = path.join(__dirname, 'uids');
+  
+  try {
+    if (fs.existsSync(historyDir)) {
+      // Supprime tous les fichiers dans le dossier
+      const files = fs.readdirSync(historyDir);
+      for (const file of files) {
+        fs.unlinkSync(path.join(historyDir, file));
+      }
+      return true;
+    }
+  } catch (error) {
+    console.error("Erreur de suppression de l'historique:", error);
+  }
+  
+  return false;
+}
+
+async function getGeminiResponse(uid, prompt, fileUrls = []) {
+  try {
+    const genaiService = await google.discoverAPI({ url: GENAI_DISCOVERY_URL });
+    const auth = new google.auth.GoogleAuth().fromAPIKey(API_KEY);
+    
+    // Charger l'historique complet
+    let chatHistory = loadChatHistory(uid);
+    
+    // Ajouter un message système en français si l'historique est vide
+    if (chatHistory.length === 0) {
+      chatHistory = [
+        {
+          role: "user",
+          parts: [{ 
+            text: "Tu es Megan Education, un assistant IA francophone. " +
+                  "Réponds toujours en français sauf si l'utilisateur pose une question dans une autre langue. " +
+                  "Sois concis, précis et utile."
+          }]
+        },
+        {
+          role: "model",
+          parts: [{ text: "D'accord, je suis prêt. Je répondrai en français par défaut." }]
+        }
+      ];
+    }
+    
+    // Préparer les fichiers pour la requête actuelle uniquement
+    const fileDataParts = [];
+    for (const fileUrl of fileUrls) {
+      if (fileUrl) {
+        const fileData = await uploadImageAndGetFileData(genaiService, auth, fileUrl);
+        if (fileData) {
+          fileDataParts.push({
+            file_data: {
+              file_uri: fileData.uri,
+              mime_type: fileData.mimeType
+            }
+          });
+        }
+      }
+    }
+    
+    // Construire le contenu avec l'historique complet
+    const contents = {
+      contents: [
+        // Ajouter tout l'historique de conversation
+        ...chatHistory.map(msg => ({
+          role: msg.role,
+          parts: msg.parts
+        })),
+        // Ajouter la nouvelle requête
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            ...fileDataParts
+          ],
+        }
+      ],
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+      ],
+      generation_config: {
+        maxOutputTokens: 10000,
+        temperature: 0.9,
+        topP: 0.95,
+        topK: 64,
+      },
+    };
+    
+    // Envoyer la requête
+    const response = await genaiService.models.generateContent({
+      model: `models/${model}`,
+      requestBody: contents,
+      auth: auth,
+    });
+    
+    const modelResponse = response.data.candidates[0].content.parts[0].text;
+    
+    // Mettre à jour l'historique
+    const newHistory = [
+      ...chatHistory,
+      { 
+        role: "user", 
+        parts: [
+          { text: prompt },
+          ...fileDataParts.map(p => ({ file_data: p.file_data }))
+        ] 
+      },
+      { 
+        role: "model", 
+        parts: [{ text: modelResponse }] 
+      }
+    ];
+    
+    saveChatHistory(uid, newHistory);
+    
+    return modelResponse;
+  } catch (error) {
+    console.error("Erreur Gemini:", error);
+    throw error;
+  }
+}
+
+// Fonction de fallback améliorée
+async function getFallbackResponse(prompt) {
+  try {
+    const response = await axios.get(
+      `https://sandipbaruwal.onrender.com/gemini?prompt=${encodeURIComponent(prompt)}`,
+      { timeout: 10000 }
+    );
+    return response.data.answer || "Je n'ai pas pu trouver de réponse.";
+  } catch (error) {
+    return "Désolé, je n'arrive pas à traiter ta demande pour le moment 💔";
+  }
+}
+
+// Fonction principale pour gérer les requêtes AI
+async function handleAIRequest({ api, message, event, prompt, fileUrls = [] }) {
+  const uid = event.senderID;
+  
+  // Réaction "en train de réfléchir"
+  api.setMessageReaction("😵‍💫", event.messageID, () => {}, true);
 
   try {
-    let res = await g4o(prompt);
-    if (["i cannot", "i can't"].some(x => res.data.result.toLowerCase().startsWith(x))) {
-      await g4o("clear");
-      res = await g4o(prompt, "llama-3.1-70b-versatile");
+    // Essayer Gemini en premier
+    const response = await getGeminiResponse(uid, prompt, fileUrls);
+    api.setMessageReaction("🤠", event.messageID, () => {}, true);
+    
+    // Envoyer la réponse
+    const replyMessage = await message.reply(`◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n${response}`);
+    
+    // Enregistrer pour le système de réponse
+    if (replyMessage && replyMessage.messageID) {
+      global.GoatBot.onReply.set(replyMessage.messageID, {
+        commandName: "ai",
+        author: event.senderID,
+        threadID: event.threadID
+      });
     }
-    return res.data;
-  } catch {
+  } catch (error) {
+    // Fallback si Gemini échoue
     try {
-    await g4o("clear");
-      return (await g4o(prompt, "llama-3.1-70b-versatile")).data;
-    } catch (err) {
-      const e = err.response?.data;
-      const errorMessage = typeof e === 'string' ? e : JSON.stringify(e);
-
-      return errorMessage.includes("Payload Too Large") ? { result: "Your text is too long" } :            errorMessage.includes("Service Suspended") ? { result: "The API has been suspended, please wait for the dev to replace the API URL"  }:
-         { result: e?.error || e || err.message };
+      const fallbackResponse = await getFallbackResponse(prompt);
+      api.setMessageReaction("⚠", event.messageID, () => {}, true);
+      const replyMessage = await message.reply(`◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n${fallbackResponse}`);
+      
+      // Enregistrer pour le système de réponse
+      if (replyMessage && replyMessage.messageID) {
+        global.GoatBot.onReply.set(replyMessage.messageID, {
+          commandName: "ai",
+          author: event.senderID,
+          threadID: event.threadID
+        });
+      }
+    } catch (fallbackError) {
+      api.setMessageReaction("❌", event.messageID, () => {}, true);
+      message.reply("◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n❌ Désolé, une erreur critique est survenue");
     }
   }
+}
+
+// Système de verrou pour éviter les doubles réponses
+const activeRequests = new Set();
+
+module.exports = {
+  config: {
+    name: 'ai',
+    version: '8.0.0',
+    role: 0,
+    category: 'AI',
+    author: 'Metoushela Walker',
+    shortDescription: 'Super IA avec intelligence améliorée',
+    longDescription: 'Assistant IA ultra-intelligent en français avec système de réponse continue',
+  },
+
+  onStart: async function () {},
+
+  onChat: async function ({ api, message, event, args }) {
+    const body = event.body || '';
+    
+    // Vérifier le préfixe
+    const ahprefix = UPoLPrefix.find(p => body.toLowerCase().startsWith(p));
+    if (!ahprefix) return;
+
+    const fullCommand = body.substring(ahprefix.length).trim();
+
+    // Détection des commandes de nettoyage
+    const cleanCommands = ['clean all', 'effacer historique', 'supprimer mémoire', 'reset mémoire', 'clear all'];
+    if (cleanCommands.some(cmd => fullCommand.toLowerCase().includes(cmd))) {
+      const success = cleanAllHistories();
+      return message.reply(
+        success ? "◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n✅ Mémoire effacée avec succès !" : 
+                 "◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n❌ Échec de la suppression de la mémoire"
+      );
     }
+
+    // Gestion de la date/heure
+    const isTimeQuestion = /(quel(le)? heure|date|année|mois|jour)/i.test(fullCommand);
+    if (isTimeQuestion) {
+      let country = 'france';
+      for (const key in timezoneMap) {
+        if (new RegExp(key, 'i').test(fullCommand)) {
+          country = key;
+          break;
+        }
+      }
+
+      const timezone = timezoneMap[country] || 'Europe/Paris';
+      const now = moment().tz(timezone).locale('fr');
+      const dateStr = now.format('dddd D MMMM YYYY');
+      const timeStr = now.format('HH:mm:ss');
+      const countryName = country.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const preposition = paysMasculins.includes(country) ? 'au' : 'en';
+
+      return message.reply(
+        `◥✇◣𝗜𝗧𝗔𝗖𝗛𝗜•°𝗗𝗘𝗫𝗧𝗘𝗨𝗥◢✇◤\n━━━━━━━━━━━━━━━━━━\n📅 Nous sommes le ${dateStr}\n🕒 Il est ${timeStr} ${preposition} ${countryName}`
+      );
+    }
+
+    // Préparation des fichiers
+    let fileUrls = [];
+    if (event.type === "message_reply" && event.messageReply.attachments) {
+      fileUrls = event.messageReply.attachments
+        .filter(att => att.type === "photo" || att.type === "video" || att.type === "audio")
+        .map(att => att.url);
+    } else if (event.attachments) {
+      fileUrls = event.attachments
+        .filter(att => att.type === "photo" || att.type === "video" || att.type === "audio")
+        .map(att => att.url);
+    }
+
+    // Créer un ID unique pour cette requête
+    const requestId = `${event.threadID}_${event.senderID}_${Date.now()}`;
+    
+    // Vérifier si cette requête est déjà en cours
+    if (activeRequests.has(requestId)) return;
+    activeRequests.add(requestId);
+
+    try {
+      // Traiter la requête AI
+      await handleAIRequest({ 
+        api, 
+        message, 
+        event, 
+        prompt: fullCommand, 
+        fileUrls 
+      });
+    } finally {
+      // Nettoyer après traitement
+      activeRequests.delete(requestId);
+    }
+  },
+
+  onReply: async function ({ api, message, event, Reply }) {
+    // Créer un ID unique pour cette requête
+    const requestId = `${event.threadID}_${event.senderID}_${Date.now()}`;
+    
+    // Vérifier si cette requête est déjà en cours
+    if (activeRequests.has(requestId)) return;
+    activeRequests.add(requestId);
+
+    try {
+      // Vérifier si c'est une réponse à un message du bot
+      if (event.type !== "message_reply" || event.messageReply.senderID !== api.getCurrentUserID()) {
+        return;
+      }
+
+      const { commandName, author } = Reply;
+      if (commandName !== this.config.name) return;
+      if (author !== event.senderID) return;
+
+      const prompt = event.body.trim();
+      if (!prompt) return;
+
+      // Préparation des fichiers
+      let fileUrls = [];
+      if (event.attachments) {
+        fileUrls = event.attachments
+          .filter(att => att.type === "photo" || att.type === "video" || att.type === "audio")
+          .map(att => att.url);
+      }
+
+      // Traiter la requête AI
+      await handleAIRequest({ 
+        api, 
+        message, 
+        event, 
+        prompt, 
+        fileUrls 
+      });
+    } finally {
+      // Nettoyer après traitement
+      activeRequests.delete(requestId);
+    }
+  }
+};
